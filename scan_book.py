@@ -25,7 +25,7 @@ async def scan_book(image_path: Path) -> dict:
         try:
             book = await openlibrary.get_book_by_isbn(candidate.isbn)
             provider = "openlibrary"
-        except BookNotFoundError:
+        except (BookNotFoundError, OpenLibraryError) as openlibrary_error:
             try:
                 book = await googlebooks.get_book_by_isbn(candidate.isbn)
                 provider = "googlebooks"
@@ -33,11 +33,13 @@ async def scan_book(image_path: Path) -> dict:
                 result["books"].append({"isbn": candidate.isbn, "metadata_found": False})
                 continue
             except GoogleBooksError as exc:
-                result["books"].append({"isbn": candidate.isbn, "metadata_found": False, "error": str(exc)})
+                result["books"].append({
+                    "isbn": candidate.isbn,
+                    "metadata_found": False,
+                    "error": str(exc),
+                    "openlibrary_error": str(openlibrary_error),
+                })
                 continue
-        except OpenLibraryError as exc:
-            result["books"].append({"isbn": candidate.isbn, "metadata_found": False, "error": str(exc)})
-            continue
         result["books"].append({"isbn": candidate.isbn, "provider": provider, "metadata_found": True, "metadata": book.model_dump()})
     return result
 

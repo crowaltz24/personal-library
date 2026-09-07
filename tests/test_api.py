@@ -56,7 +56,12 @@ def test_external_failure(monkeypatch, client):
     async def failed(_: str):
         raise OpenLibraryError("down")
 
+    async def fallback_failed(_: str):
+        from app.services.googlebooks import GoogleBooksError
+        raise GoogleBooksError("also down")
+
     monkeypatch.setattr(books.service, "get_book_by_isbn", failed)
+    monkeypatch.setattr(books.fallback_service, "get_book_by_isbn", fallback_failed)
     assert client.get("/api/books/isbn/9780306406157").status_code == 502
 
 

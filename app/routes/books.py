@@ -20,7 +20,7 @@ async def get_book_by_isbn(isbn: str) -> BookMetadata:
         return await service.get_book_by_isbn(isbn)
     except InvalidISBNError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except BookNotFoundError:
+    except (BookNotFoundError, OpenLibraryError):
         try:
             return await fallback_service.get_book_by_isbn(isbn)
         except GoogleBooksNotFoundError as exc:

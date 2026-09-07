@@ -14,6 +14,18 @@ def image_upload():
     return {"image": ("book.png", buffer.getvalue(), "image/png")}
 
 
+def test_exif_orientation_is_applied():
+    image = Image.new("RGB", (20, 40), "white")
+    exif = image.getexif()
+    exif[274] = 6
+    buffer = BytesIO()
+    image.save(buffer, format="JPEG", exif=exif.tobytes())
+
+    loaded = barcode._load_image(buffer.getvalue())
+
+    assert loaded.size == (40, 20)
+
+
 def test_successful_barcode_extraction(monkeypatch):
     monkeypatch.setattr(
         barcode,
