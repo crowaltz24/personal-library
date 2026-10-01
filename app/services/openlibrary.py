@@ -68,6 +68,7 @@ def parse_openlibrary_book(data: dict[str, Any], isbn: str) -> BookMetadata:
         cover_url=cover_url,
         openlibrary_work_id=work_id,
         openlibrary_edition_id=edition_id,
+        metadata_source="openlibrary",
     )
 
 

@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.isbn import InvalidISBNError, isbn10_to_isbn13, normalize_isbn
+from app.services.isbn import InvalidISBNError, isbn10_to_isbn13, isbn13_to_isbn10, normalize_isbn
 
 
 def test_valid_isbn13():
@@ -18,3 +18,7 @@ def test_invalid_check_digit():
 
 def test_isbn10_to_isbn13():
     assert isbn10_to_isbn13("0-306-40615-2") == "9780306406157"
+
+
+def test_isbn13_to_isbn10():
+    assert isbn13_to_isbn10("9780306406157") == "0306406152"

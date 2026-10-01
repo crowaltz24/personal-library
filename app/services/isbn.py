@@ -42,6 +42,15 @@ def isbn10_to_isbn13(isbn10: str) -> str:
     return body + str(check_digit)
 
 
+def isbn13_to_isbn10(isbn13: str) -> str:
+    normalized = normalize_isbn(isbn13)
+    if len(normalized) != 13 or not normalized.startswith("978"):
+        raise InvalidISBNError("Only 978 ISBN-13 values can be converted")
+    body = normalized[3:-1]
+    check_digit = (11 - sum((10 - index) * int(digit) for index, digit in enumerate(body)) % 11) % 11
+    return body + ("X" if check_digit == 10 else str(check_digit))
+
+
 def isbn_from_barcode(value: str) -> str | None:
     try:
         normalized = normalize_isbn(value)

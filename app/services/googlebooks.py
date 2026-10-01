@@ -62,6 +62,8 @@ def parse_google_book(data: dict[str, Any], requested_isbn: str) -> BookMetadata
         description=info.get("description"),
         subjects=info.get("categories") if isinstance(info.get("categories"), list) else [],
         cover_url=cover_url,
+        google_volume_id=data.get("id") if isinstance(data.get("id"), str) else None,
+        metadata_source="google_books",
     )
 
 

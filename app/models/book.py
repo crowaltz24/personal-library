@@ -21,4 +21,8 @@ class Book(Base):
     cover_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     openlibrary_work_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     openlibrary_edition_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    google_volume_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    metadata_source: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     date_added: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
