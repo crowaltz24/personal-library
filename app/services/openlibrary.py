@@ -72,7 +72,7 @@ def parse_openlibrary_book(data: dict[str, Any], isbn: str) -> BookMetadata:
     )
 
 
-def parse_openlibrary_search_book(data: dict[str, Any], isbn: str) -> BookMetadata:
+def parse_openlibrary_search_book(data: dict[str, Any], isbn: str = "") -> BookMetadata:
     isbn10 = None
     isbn13 = None
     identifiers = data.get("isbn")
@@ -90,7 +90,7 @@ def parse_openlibrary_search_book(data: dict[str, Any], isbn: str) -> BookMetada
                 isbn13 = normalized_identifier
     if len(isbn) == 10:
         isbn10 = isbn
-    else:
+    elif len(isbn) == 13:
         isbn13 = isbn
     return BookMetadata(
         isbn10=isbn10,
@@ -112,6 +112,40 @@ def parse_openlibrary_search_book(data: dict[str, Any], isbn: str) -> BookMetada
 class OpenLibraryService:
     base_url = "https://openlibrary.org/isbn"
     search_url = "https://openlibrary.org/search.json"
+
+    async def search_books(
+        self,
+        title: str | None = None,
+        author: str | None = None,
+        query: str | None = None,
+        limit: int = 10,
+    ) -> list[BookMetadata]:
+        params: dict[str, Any] = {"limit": limit, "fields": "*,isbn"}
+        if title:
+            params["title"] = title
+        if author:
+            params["author"] = author
+        if not title and not author and query:
+            params["q"] = query
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(self.search_url, params=params)
+        except httpx.HTTPError as exc:
+            raise OpenLibraryError("Open Library could not be reached") from exc
+        if response.status_code >= 400:
+            raise OpenLibraryError(f"Open Library returned HTTP {response.status_code}")
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise OpenLibraryError("Open Library returned invalid JSON") from exc
+        docs = payload.get("docs") if isinstance(payload, dict) else None
+        if not isinstance(docs, list):
+            return []
+        return [
+            parse_openlibrary_search_book(document)
+            for document in docs[:limit]
+            if isinstance(document, dict)
+        ]
 
     async def get_book_by_isbn(self, isbn: str) -> BookMetadata:
         normalized = normalize_isbn(isbn)

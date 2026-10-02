@@ -39,17 +39,18 @@ def _isbn_identifiers(values: Any) -> tuple[str | None, str | None]:
     return isbn10, isbn13
 
 
-def parse_google_book(data: dict[str, Any], requested_isbn: str) -> BookMetadata:
+def parse_google_book(data: dict[str, Any], requested_isbn: str = "") -> BookMetadata:
     info = data.get("volumeInfo")
     if not isinstance(info, dict):
         raise GoogleBooksError("Google Books returned an unexpected volume")
 
     isbn10, isbn13 = _isbn_identifiers(info.get("industryIdentifiers"))
-    normalized_requested = normalize_isbn(requested_isbn)
-    if len(normalized_requested) == 10:
-        isbn10 = normalized_requested
-    else:
-        isbn13 = normalized_requested
+    if requested_isbn:
+        normalized_requested = normalize_isbn(requested_isbn)
+        if len(normalized_requested) == 10:
+            isbn10 = normalized_requested
+        else:
+            isbn13 = normalized_requested
     image_links = info.get("imageLinks")
     cover_url = image_links.get("thumbnail") if isinstance(image_links, dict) else None
     return BookMetadata(
@@ -97,6 +98,45 @@ def _book_has_isbn(data: dict[str, Any], isbns: set[str]) -> bool:
 
 class GoogleBooksService:
     base_url = "https://www.googleapis.com/books/v1/volumes"
+
+    async def search_books(
+        self,
+        title: str | None = None,
+        author: str | None = None,
+        query: str | None = None,
+        limit: int = 10,
+    ) -> list[BookMetadata]:
+        query_parts = []
+        if title:
+            query_parts.append(f'intitle:"{title}"')
+        if author:
+            query_parts.append(f'inauthor:"{author}"')
+        search_query = " ".join(query_parts) or query
+        if not search_query:
+            return []
+        params: dict[str, Any] = {"q": search_query, "maxResults": limit}
+        api_key = os.getenv("GOOGLE_BOOKS_API_KEY")
+        if api_key:
+            params["key"] = api_key
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(self.base_url, params=params)
+        except httpx.HTTPError as exc:
+            raise GoogleBooksError("Google Books could not be reached") from exc
+        if response.status_code >= 400:
+            raise GoogleBooksError(f"Google Books returned HTTP {response.status_code}")
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise GoogleBooksError("Google Books returned invalid JSON") from exc
+        items = payload.get("items") if isinstance(payload, dict) else None
+        if not isinstance(items, list):
+            return []
+        return [
+            parse_google_book(item)
+            for item in items[:limit]
+            if isinstance(item, dict)
+        ]
 
     async def get_book_by_isbn(self, isbn: str) -> BookMetadata:
         normalized = normalize_isbn(isbn)

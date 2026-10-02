@@ -41,3 +41,27 @@ class OCRResponse(BaseModel):
     orientation: int | None = None
     engine: str
     message: str | None = None
+
+
+class OCRIdentificationOCR(BaseModel):
+    text: str
+    normalized_text: str
+    confidence: float | None = None
+    orientation: int | None = None
+
+
+class OCRIdentificationCandidate(BaseModel):
+    title: str | None = None
+    authors: list[str] = Field(default_factory=list)
+    isbn10: str | None = None
+    isbn13: str | None = None
+    cover_url: str | None = None
+    provider: str | None = None
+    match_score: float
+
+
+class OCRIdentificationResponse(BaseModel):
+    detected: bool
+    ocr: OCRIdentificationOCR
+    candidates: list[OCRIdentificationCandidate] = Field(default_factory=list)
+    message: str | None = None

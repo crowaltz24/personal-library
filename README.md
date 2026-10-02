@@ -61,6 +61,42 @@ The service applies EXIF orientation, grayscale conversion, bounded resizing, au
 
 The photographed `test-images/cnfront.jpeg` fixture is used by the optional real-engine test. Run `pytest tests/test_ocr.py`; that test is skipped when Tesseract is not installed. OCR duration depends on image size and local hardware; the service caps preprocessing at a 2400-pixel maximum dimension for a predictable first baseline.
 
+### OCR-assisted identification
+
+`POST /api/scan/identify-ocr` turns book-cover or spine OCR into ranked metadata candidates without adding anything to the library:
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/api/scan/identify-ocr -F "image=@test-images/cnfront.jpeg"
+```
+
+Example response:
+
+```json
+{
+	"detected": true,
+	"ocr": {
+		"text": "THE HOBBIT\nJ.R.R. TOLKIEN",
+		"normalized_text": "THE HOBBIT\nJ.R.R. TOLKIEN",
+		"confidence": 0.91,
+		"orientation": 0
+	},
+	"candidates": [{
+		"title": "The Hobbit",
+		"authors": ["J.R.R. Tolkien"],
+		"isbn10": "0261102214",
+		"isbn13": "9780261102214",
+		"cover_url": "https://covers.openlibrary.org/b/id/123-L.jpg",
+		"provider": "openlibrary",
+		"match_score": 0.94
+	}],
+	"message": null
+}
+```
+
+The identification service preserves raw and normalized OCR and positional regions, extracts likely title, subtitle, author, and edition signals, and checks valid ISBNs first because ISBN lookup is stronger than text search. It generates focused title/author queries rather than sending one noisy OCR blob to providers. Without an ISBN it searches Open Library and Google Books, deduplicates results, and ranks candidates using title, subtitle, author coverage, edition, and OCR-confidence evidence. Short isolated artifacts such as `sna` do not qualify as meaningful title evidence. Results are ordered strongest first and alternatives are retained for user confirmation. The `match_score` is a deterministic heuristic, not a calibrated probability; OCR confidence is not book-identification confidence.
+
+No useful OCR returns HTTP 200 with an empty candidate list. Provider failures also return the OCR evidence and an empty list rather than an opaque HTTP 500. This endpoint does not create library records. It is the reusable identification layer intended to receive future individual spine crops; shelf detection and segmentation remain outside its scope.
+
 ### Identify and add a book
 
 Identify an uploaded image for a confirmation screen. This does not save anything:
