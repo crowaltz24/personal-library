@@ -1,14 +1,9 @@
 from dataclasses import dataclass
-from io import BytesIO
-
 import zxingcpp
 from PIL import Image, ImageEnhance, ImageOps
 
+from app.services.image_preprocessing import InvalidImageError, load_image
 from app.services.isbn import isbn_from_barcode
-
-
-class InvalidImageError(ValueError):
-    pass
 
 
 @dataclass(frozen=True)
@@ -27,11 +22,7 @@ def _decode(image: Image.Image) -> list:
 
 
 def _load_image(image_bytes: bytes) -> Image.Image:
-    try:
-        with Image.open(BytesIO(image_bytes)) as source:
-            return ImageOps.exif_transpose(source).convert("RGB")
-    except Exception as exc:
-        raise InvalidImageError("The uploaded file is not a readable image") from exc
+    return load_image(image_bytes)
 
 
 def decode_isbn_barcodes(image_bytes: bytes) -> list[BarcodeCandidate]:

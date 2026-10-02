@@ -1,8 +1,15 @@
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
-from app.schemas.scan import BarcodeScanResponse, BookIdentificationResponse, IdentifiedBook
+from app.schemas.scan import (
+    BarcodeScanResponse,
+    BookIdentificationResponse,
+    IdentifiedBook,
+    OCRBlockResponse,
+    OCRResponse,
+)
 from app.services.barcode import InvalidImageError, decode_isbn_barcodes
 from app.services.identification import identify_book_image
+from app.services.ocr import OCREngineUnavailableError, ocr_image
 
 router = APIRouter(prefix="/scan")
 
@@ -29,4 +36,31 @@ async def identify_book(image: UploadFile = File(...)) -> BookIdentificationResp
     return BookIdentificationResponse(
         detected=bool(books),
         books=[IdentifiedBook(**book) for book in books],
+    )
+
+
+@router.post("/ocr", response_model=OCRResponse)
+async def scan_ocr(image: UploadFile = File(...)) -> OCRResponse:
+    try:
+        result = ocr_image(await image.read())
+    except InvalidImageError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OCREngineUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return OCRResponse(
+        text=result.text,
+        normalized_text=result.normalized_text,
+        blocks=[
+            OCRBlockResponse(
+                text=block.text,
+                confidence=block.confidence,
+                bbox=list(block.bbox),
+            )
+            for block in result.blocks
+        ],
+        width=result.width,
+        height=result.height,
+        orientation=result.orientation,
+        engine=result.engine,
+        message="No readable text detected" if not result.normalized_text else None,
     )

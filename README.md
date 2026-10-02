@@ -32,6 +32,35 @@ curl.exe -X POST http://127.0.0.1:8000/api/scan/barcode -F "image=@book.jpg"
 
 The response includes `detected` and a `candidates` list containing each valid ISBN barcode, for example `{"isbn":"9780306406157","format":"EAN13"}`. EAN-13 values are accepted only when they have a valid ISBN check digit and begin with `978` or `979`; arbitrary product barcodes are ignored. ZXing handles common 1D barcodes, but difficult photographs may still require better focus, lighting, or cropping.
 
+### OCR text extraction
+
+`POST /api/scan/ocr` accepts a multipart image upload and returns raw OCR text, lightly normalized text, word-level confidence values, bounding boxes, image dimensions, and orientation metadata:
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/api/scan/ocr -F "image=@test-images/tbkback.png"
+```
+
+Example response:
+
+```json
+{
+	"text": "The Brothers Karamazov...",
+	"normalized_text": "The Brothers Karamazov...",
+	"blocks": [{"text": "Karamazov", "confidence": 94.2, "bbox": [120, 80, 210, 42]}],
+	"width": 900,
+	"height": 1200,
+	"orientation": 0,
+	"engine": "tesseract",
+	"message": null
+}
+```
+
+OCR uses the local open-source Tesseract engine through `pytesseract`. Install the Python dependencies from `requirements.txt`, then install Tesseract separately. On Windows with Chocolatey, run `choco install tesseract`; on macOS use `brew install tesseract`; on Debian/Ubuntu use `sudo apt install tesseract-ocr`. The executable must be available on `PATH`.
+
+The service applies EXIF orientation, grayscale conversion, bounded resizing, autocontrast, and modest contrast enhancement. It uses Tesseract orientation detection when available and does not perform four-pass rotation or shelf/spine segmentation. Empty or unreadable text returns HTTP 200 with empty `text` and `blocks` plus `message: "No readable text detected"`; invalid or oversized images return HTTP 400. OCR is currently a reusable text-extraction primitive, not a book identification or matching system.
+
+The photographed `test-images/cnfront.jpeg` fixture is used by the optional real-engine test. Run `pytest tests/test_ocr.py`; that test is skipped when Tesseract is not installed. OCR duration depends on image size and local hardware; the service caps preprocessing at a 2400-pixel maximum dimension for a predictable first baseline.
+
 ### Identify and add a book
 
 Identify an uploaded image for a confirmation screen. This does not save anything:
